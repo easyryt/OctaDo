@@ -1,4 +1,7 @@
+import 'package:get/get_core/src/get_main.dart';
+import 'package:get/get_instance/get_instance.dart';
 import 'package:octa_todo_app/animated_starting/onboarding_screen.dart';
+import 'package:octa_todo_app/controller/task_controller.dart';
 import 'package:octa_todo_app/homePage.dart';
 import 'package:octa_todo_app/services/client.dart';
 import 'package:flutter/material.dart';
@@ -29,7 +32,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive, overlays: []);
-
+    Get.put(TaskController());
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(

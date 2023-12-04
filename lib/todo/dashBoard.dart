@@ -211,8 +211,7 @@ class _DashBoardState extends State<DashBoard> {
     );
   }
 
-  Column NotesContainerData(
-      String formatTimeAgo(String dateTimeString), String taskName) {
+  Column NotesContainerData(String formatTimeAgo(String dateTimeString), String taskName) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.start,

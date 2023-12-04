@@ -1,16 +1,13 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:email_validator/email_validator.dart';
-import 'package:octa_todo_app/authentications/profilePage.dart';
 import 'package:octa_todo_app/authentications/signin.dart';
+import 'package:octa_todo_app/controller/signUpController.dart';
 import 'package:octa_todo_app/homePage.dart';
-import 'package:octa_todo_app/json/register.dart';
-import 'package:octa_todo_app/services/client.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:page_transition/page_transition.dart';
+import 'package:octa_todo_app/utils/utils.dart';
 import 'package:http/http.dart' as http;
 
 class SignUpPage extends StatefulWidget {
@@ -24,9 +21,11 @@ class _SignUpPageState extends State<SignUpPage> {
   TextEditingController nameController = TextEditingController();
   TextEditingController emailController = TextEditingController();
   TextEditingController passwordcontroller = TextEditingController();
+  bool _isLoading = false;
 
   final _formkey = GlobalKey<FormState>();
   File? imageFile;
+
   void selectImage(ImageSource source) async {
     XFile? pickedFile = await ImagePicker().pickImage(source: source);
     if (pickedFile != null) {
@@ -40,18 +39,20 @@ class _SignUpPageState extends State<SignUpPage> {
 
   Future<String> uploadImage(File imageFile) async {
     try {
+      setState(() {
+        _isLoading = true;
+      });
       var stream = new http.ByteStream(imageFile.openRead());
       stream.cast();
       var length = await imageFile.length();
 
-      // path of signup
       var uri =
           Uri.parse('https://notesapp-i6yf.onrender.com/user/auth/signUp');
       var request = new http.MultipartRequest('POST', uri);
       request.headers['Content-Type'] = 'application/json';
       request.fields['name'] = nameController.text.trim().toString();
-      request.fields['email'] = emailController.text.trim().toString();
       request.fields['password'] = passwordcontroller.text.trim().toString();
+      request.fields['email'] = emailController.text.trim().toString();
 
       var multiport = new http.MultipartFile('profilePic', stream, length);
 
@@ -62,24 +63,26 @@ class _SignUpPageState extends State<SignUpPage> {
       // print(reponse.);
 
       if (reponse.statusCode == 201) {
-        print("hello");
-        print(reponse.statusCode);
-        print(reponse);
+        setState(() {
+          _isLoading = false;
+        });
         Navigator.push(
             context, MaterialPageRoute(builder: (context) => HomePage()));
-        return "pic uploded";
+        return "${reponse.statusCode}${reponse.stream.bytesToString()}";
       } else {
-        print("hii");
-        print(reponse.statusCode);
-        print(reponse);
-        print(await reponse.stream.bytesToString());
-        return "${reponse.statusCode}Failed";
+        setState(() {
+          _isLoading = false;
+        });
+        return "${reponse.statusCode}${reponse.stream.bytesToString()}";
       }
       //
     } catch (e) {
       print(e);
+      setState(() {
+        _isLoading = false;
+      });
       print("failed");
-      return "$e";
+      return "failed$e";
     }
   }
 
@@ -368,63 +371,6 @@ class _SignUpPageState extends State<SignUpPage> {
                         // height: 30,
                         height: size.height * 0.035,
                       ),
-                      // Conform password
-                      // TextFormField(
-                      //   controller: conformpasswordcontroller,
-                      //   validator: (value) {
-                      //     if (value!.isEmpty)
-                      //       return "password cannot be empty";
-                      //     else if (value.length < 8)
-                      //       return "password must be atleast 8";
-                      //     else if (value != passwordcontroller.text.trim())
-                      //       return "recheck the password ";
-                      //     else
-                      //       return null;
-                      //   },
-                      //   style: TextStyle(color: Colors.white),
-                      //   obscureText: _secureTextpass2,
-                      //   decoration: InputDecoration(
-                      //     prefixIcon: Padding(
-                      //       padding: const EdgeInsets.only(right: 10.0),
-                      //       child: Container(
-                      //         // height: 20,
-                      //         // width: 20,
-                      //         height: size.height * 0.020,
-                      //         width: size.width * 0.020,
-                      //         child: const Padding(
-                      //           padding: EdgeInsets.symmetric(
-                      //               vertical: 4, horizontal: 2),
-                      //           child: Icon(
-                      //             Icons.lock,
-                      //             color: Color(0xffFFFFFF),
-                      //           ),
-                      //         ),
-                      //       ),
-                      //     ),
-                      //     suffixIcon: IconButton(
-                      //         onPressed: () {
-                      //           setState(() {
-                      //             _secureTextpass2 = !_secureTextpass2;
-                      //           });
-                      //         },
-                      //         icon: _secureTextpass2
-                      //             ? const Icon(
-                      //                 CupertinoIcons.eye_slash_fill,
-                      //                 color: Color(0xffFFFFFF),
-                      //               )
-                      //             : const Icon(
-                      //                 CupertinoIcons.eye_fill,
-                      //                 color: Color(0xffFFFFFF),
-                      //               )),
-                      //     hintText: "Confirm Password",
-                      //     hintStyle: const TextStyle(
-                      //       fontFamily: "Avenir",
-                      //       fontWeight: FontWeight.w400,
-                      //       fontSize: 16,
-                      //       color: Color(0xffFFFFFF),
-                      //     ),
-                      //   ),
-                      // ),
                     ],
                   ),
 
@@ -433,20 +379,41 @@ class _SignUpPageState extends State<SignUpPage> {
                     height: size.height * 0.032,
                   ),
                   // next
-
-                  // submit and the lofin to todoScreen1 page
-                  // signUp
                   GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        if (_formkey.currentState!.validate()) {
-                          if (imageFile != null) {
-                            uploadImage(imageFile!);
-                          } else {
-                            print("not uploded");
-                          }
+                    onTap: () async {
+                      if (_formkey.currentState!.validate()) {
+                        if (imageFile != null) {
+                          setState(() {
+                            _isLoading = true;
+                          });
+                          String message =
+                              await SignUpController().signInWithImage(
+                            imageFile!,
+                            nameController.text.trim(),
+                            emailController.text.trim(),
+                            passwordcontroller.text.trim(),
+                          );
+                          setState(() {
+                            _isLoading = false;
+                          });
+                          print(message);
+                          showSnackBar(message, context);
+                        } else {
+                          setState(() {
+                            _isLoading = true;
+                          });
+                          String message =
+                          await SignUpController().signIn(
+                            nameController.text.trim(),
+                            emailController.text.trim(),
+                            passwordcontroller.text.trim(),
+                          );
+                          setState(() {
+                            _isLoading = false;
+                          });
+                          showSnackBar(message, context);
                         }
-                      });
+                      }
                     },
                     child: Center(
                       child: Container(
@@ -463,16 +430,20 @@ class _SignUpPageState extends State<SignUpPage> {
                             // color: Colors.red,
                             height: 30,
                             width: 311,
-                            child: const Center(
-                              child: Text(
-                                'SIGN UP',
-                                style: TextStyle(
-                                  color: Color(0xffFFFFFF),
-                                  fontSize: 20,
-                                  fontFamily: 'Poppins',
-                                  fontWeight: FontWeight.w400,
-                                ),
-                              ),
+                            child: Center(
+                              child: _isLoading
+                                  ? CircularProgressIndicator(
+                                      color: Colors.white,
+                                    )
+                                  : Text(
+                                      'SIGN UP',
+                                      style: TextStyle(
+                                        color: Color(0xffFFFFFF),
+                                        fontSize: 20,
+                                        fontFamily: 'Poppins',
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                    ),
                             ),
                           ),
                         ),
